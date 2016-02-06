@@ -7,10 +7,22 @@
  */
 
 $filename = $argv[1];
+$orgFilename = substr($filename,0,2).'/'.substr($filename,0,4).'/'.$filename;
 $data = file_get_contents($filename);
 
 $index = 'not-so-secret-agent-002';
 $ip = '178.62.232.68';
+
+$output = 'export/sentiment.csv';
+
+
+//if(!file_exists($output)){
+//    $df = fopen($output, 'w');
+//    fprintf($df, chr(0xEF).chr(0xBB).chr(0xBF));
+//}else{
+//    $df = fopen($output, 'a');
+//}
+//fprintf($df, chr(0xEF).chr(0xBB).chr(0xBF));
 
 
 $json = json_decode($data, true);
@@ -20,7 +32,7 @@ $keys = array_keys($json);
 $bucket = 'unknown';
 
 foreach($keys as $key){
-    if(in_array($key, array('blogs', 'facebook_page', 'facebook_user', 'geotag', 'post', 'reddit', 'facebook', 'sinaweibo', 'tencentweibo', 'thread', 'tumblr', 'twitter',
+    if(in_array($key, array('blogs', 'blog', 'facebook_page', 'board', 'facebook_user', 'geotag', 'post', 'reddit', 'facebook', 'sinaweibo', 'tencentweibo', 'thread', 'tumblr', 'twitter',
         'video', 'wordpress', 'youtube'))){
         $bucket = $key;
     }
@@ -54,7 +66,12 @@ $resultDocument = json_decode($result, true);
 $resultDocument['elastic_id'] = $resultDocument['_id'];
 unset($resultDocument['_id']);
 
-$resultDocument['filename'] = $filename;
+$resultDocument['filename'] = $orgFilename;
+$resultDocument['interaction'] =  $json['interaction'];
+$resultDocument['language'] =  $json['language'];
+if(isset($json['demographics'])) {
+    $resultDocument['demographics'] = $json['demographics'];
+}
 
 
 $mongoClient = new \MongoClient('mongodb://'.$ip);
@@ -64,10 +81,11 @@ $elasticCollection->ensureIndex(array('elastic_id' => 1));
 $elasticCollection->ensureIndex(array('filename' => 1));
 $elasticCollection->ensureIndex(array('_type' => 1));
 
-
+//fputcsv($df, array($resultDocument['elastic_id'], $filename, strip_tags($json['interaction']['content']), $json['language']['tag']), ';');
 
 $elasticCollection->insert($resultDocument);
 
+unlink($filename);
 
 
 
