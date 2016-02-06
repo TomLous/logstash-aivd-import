@@ -68,12 +68,15 @@ unset($resultDocument['_id']);
 
 $resultDocument['filename'] = $orgFilename;
 $resultDocument['interaction'] =  $json['interaction'];
-$resultDocument['language'] =  $json['language'];
+if(isset($json['language'])) {
+    $resultDocument['language'] = $json['language'];
+}
 if(isset($json['demographics'])) {
     $resultDocument['demographics'] = $json['demographics'];
 }
 
 
+$mongoClient = new \MongoClient('mongodb://'.$ip);
 $mongoClient = new \MongoClient('mongodb://'.$ip);
 
 $elasticCollection = $mongoClient->selectCollection('AIVD', 'elastic');
