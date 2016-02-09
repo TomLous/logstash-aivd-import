@@ -5,24 +5,13 @@
  * @package     package
  * Datetime:     06/02/16 13:45
  */
-
+date_default_timezone_set('Europe/Amsterdam');
 $filename = $argv[1];
 $orgFilename = substr($filename,0,2).'/'.substr($filename,0,4).'/'.$filename;
 $data = file_get_contents($filename);
 
-$index = 'not-so-secret-agent-002';
+$index = 'not-so-secret-agent-013';
 $ip = '178.62.232.68';
-
-$output = 'export/sentiment.csv';
-
-
-//if(!file_exists($output)){
-//    $df = fopen($output, 'w');
-//    fprintf($df, chr(0xEF).chr(0xBB).chr(0xBF));
-//}else{
-//    $df = fopen($output, 'a');
-//}
-//fprintf($df, chr(0xEF).chr(0xBB).chr(0xBF));
 
 
 $json = json_decode($data, true);
@@ -42,10 +31,40 @@ if($bucket == 'unknown'){
     print_r($json);
 }
 
+preg_match_all('/latitude\":\s*([0-9\.]+)/', $data, $matches);
+$newData = array();
+if(isset($matches[1]) && isset($matches[1][0])){
+    $lat = $matches[1][0];
+
+
+    preg_match_all('/longitude\":\s*([0-9\.]+)/', $data, $matches);
+    $long = $matches[1][0];
+
+    $newData['pin'] = array("location" => array("lat"=> $lat, "lon"=>$long));
+
+}
+
+//print_r($json);
+
+$time = strtotime($json['interaction']['created_at']);
+
+$newData['date'] =  date('c',$time);
+$newData['date2'] =  date('Y-m-d H:i:s',$time);
+$newData['timestamp'] =  $time;
+
+
+
+
+$d2 = substr(json_encode($newData),1,-1);
+$data = substr($data, 0, -1).','.$d2.'}';
+
+//$data = json_encode($json);
+
+//print_r($data);
 
 $url = 'http://'.$ip.':9200/'.$index.'/'.$bucket;
 
-//print $url.PHP_EOL;
+print $url.PHP_EOL;
 
 $curl_handle=curl_init();
 curl_setopt($curl_handle,CURLOPT_URL,$url);
@@ -59,6 +78,11 @@ curl_setopt($curl_handle, CURLOPT_HTTPHEADER, array(
     'Content-Length: ' . strlen($data)
 ));
 $result = curl_exec($curl_handle);
+
+
+//print_r($result);
+
+
 
 $resultDocument = json_decode($result, true);
 
@@ -75,9 +99,15 @@ if(isset($json['demographics'])) {
     $resultDocument['demographics'] = $json['demographics'];
 }
 
+$resultDocument['date'] =  date('c',$time);
+$resultDocument['date2'] =  date('Y-m-d H:i:s',$time);
+$resultDocument['_timestamp'] =  $time;
 
 $mongoClient = new \MongoClient('mongodb://'.$ip);
-$mongoClient = new \MongoClient('mongodb://'.$ip);
+//$mongoClient = new \MongoClient('mongodb://'.$ip);
+
+
+
 
 $elasticCollection = $mongoClient->selectCollection('AIVD', 'elastic');
 $elasticCollection->ensureIndex(array('elastic_id' => 1));
